@@ -1,0 +1,15 @@
+import { Drawer } from '../components/Drawer';
+import React, { useState, useEffect } from 'react';
+import { StatusTag } from '../components/StatusTag';
+import type { Warehouse } from '../domain/types';
+import { useDemo } from '../state/DemoContext';
+import type { PageProps } from './types';
+
+const CAPABILITY = { fbs: 'FBS 出库', 'rfbs-return': 'rFBS 退货', 'label-printing': '面单打印' } as const;
+export function WarehousesPage({ warehouseId, role }: PageProps) {
+  const { state, runCommand } = useDemo(); const [editing, setEditing] = useState<Warehouse>(); const [priority, setPriority] = useState(''); const [hours, setHours] = useState(''); const [connected, setConnected] = useState(true); const [message, setMessage] = useState('');
+  useEffect(() => { setEditing(undefined); }, [warehouseId, role]);
+  const warehouses = state.warehouses.filter(item => warehouseId === 'all' || item.id === warehouseId);
+  const save = async () => { if (!editing) return; const result = await runCommand({ type: 'UPDATE_WAREHOUSE_CONFIG', warehouseId: editing.id, priority: Number(priority), estimatedProcessingHours: Number(hours), connected }); setMessage(result.ok ? '云仓配置已保存' : `保存失败：${result.message}`); if (result.ok) setEditing(undefined); };
+  return <div className="page-stack">{message ? <div className="success-note" role="status"><span>{message}</span><button onClick={() => setMessage('')}>关闭</button></div> : null}<div className="warehouse-grid">{warehouses.map(item => <article className="warehouse-card panel" key={item.id}><header><span className="warehouse-avatar" style={{ background: item.display.color }}>{item.display.initials}</span><div><h2>{item.name}</h2><p>{item.city} · {item.timezone}</p></div><StatusTag tone={item.connected ? 'success' : 'danger'}>{item.connected ? '已连接' : '未连接'}</StatusTag></header><dl><div><dt>路由优先级</dt><dd>第 {item.priority} 位</dd></div><div><dt>预计处理</dt><dd>{item.estimatedProcessingHours} 小时</dd></div></dl><h3>仓库能力</h3><div className="capability-list">{item.capabilities.map(capability => <span key={capability}>{CAPABILITY[capability]}</span>)}</div><h3>覆盖区域</h3><p>{item.coverageRegions.join('、')}</p>{role === 'admin' ? <button className="button button--secondary" onClick={() => { setEditing(item); setPriority(String(item.priority)); setHours(String(item.estimatedProcessingHours)); setConnected(item.connected); }}>编辑配置</button> : <small>只读</small>}</article>)}</div>{editing ? <Drawer open title="编辑云仓配置" onClose={() => setEditing(undefined)}><h2>编辑{editing.name}</h2><label>路由优先级<input aria-label="路由优先级" value={priority} onChange={e => setPriority(e.target.value)} /></label><label>预计处理小时<input aria-label="预计处理小时" value={hours} onChange={e => setHours(e.target.value)} /></label><label><input type="checkbox" checked={connected} onChange={e => setConnected(e.target.checked)} />保持连接</label><div className="confirm-modal__actions"><button className="button button--secondary" onClick={() => setEditing(undefined)}>取消</button><button className="button button--primary" onClick={() => void save()}>保存配置</button></div></Drawer> : null}</div>;
+}
