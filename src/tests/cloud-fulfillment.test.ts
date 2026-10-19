@@ -72,3 +72,51 @@ describe('云仓回传 → Ozon 回写 闭环', () => {
     expect(event).toMatchObject({ type: 'picked' });
   });
 });
+
+describe('Ozon 新订单与取消（模拟 Push）', () => {
+  const posting = (no: string, offer = 'CN-DEMO-001') => ({
+    posting_number: no, status: 'awaiting_packaging' as const, in_process_at: at(0), shipment_date: '2026-09-07T20:00:00+03:00',
+    products: [{ sku: 1, offer_id: offer, name: 'x', quantity: 1, price: '790.00' }],
+    customer: { address: { city: '莫斯科', region: '莫斯科市' } },
+  });
+
+  it('按 offer_id 映射商品创建订单，重复 posting 幂等，未知货号不建单', () => {
+    let s = demoReducer(createSeedState(), { type: 'INGEST_OZON_POSTING', posting: posting('111-1'), storeId: 'store-polaris', at: at(0) });
+    const order = s.orders.find((o) => o.postingNumber === '111-1')!;
+    expect(order).toMatchObject({ id: 'ozon-111-1', status: 'pending-routing', totalRub: 790, fulfillmentType: 'FBS' });
+    expect(order.items[0].productId).toBe('product-01');
+    expect(demoReducer(s, { type: 'INGEST_OZON_POSTING', posting: posting('111-1'), storeId: 'store-polaris' })).toBe(s);
+    const count = s.orders.length;
+    s = demoReducer(s, { type: 'INGEST_OZON_POSTING', posting: posting('222-1', 'NOPE'), storeId: 'store-polaris', at: at(1) });
+    expect(s.orders).toHaveLength(count);
+    expect(s.liveEvents![0].tone).toBe('danger');
+  });
+
+  it('新订单可走完整闭环：下发 → 云仓回传 → 回写 Ozon', async () => {
+    const s = demoReducer(createSeedState(), { type: 'INGEST_OZON_POSTING', posting: posting('333-1'), storeId: 'store-polaris', at: at(0) });
+    const runtime = createDemoRuntime({ initialState: s, storage: undefined });
+    expect((await runtime.runCommand({ type: 'DISPATCH_ORDER', orderId: 'ozon-333-1' })).ok).toBe(true);
+    const wh = runtime.getSnapshot().state.orders.find((o) => o.id === 'ozon-333-1')!.assignedWarehouseId!;
+    for (const [i, type] of (['picked', 'packed', 'waybill', 'shipped'] as const).entries()) {
+      runtime.dispatch({ type: 'APPLY_WAREHOUSE_EVENT', event: { eventId: `n${i}`, type, orderId: 'ozon-333-1', warehouseId: wh, occurredAt: at(i + 1), package: { packageNo: 'P', items: [], waybillNo: type === 'waybill' ? 'RU7' : undefined } } });
+    }
+    expect((await runtime.runCommand({ type: 'SYNC_TO_OZON', orderId: 'ozon-333-1' })).ok).toBe(true);
+    expect(runtime.getSnapshot().state.orders.find((o) => o.id === 'ozon-333-1')).toMatchObject({ status: 'completed', trackingNumber: 'RU7' });
+  });
+
+  it('未出库前取消释放预占库存；已出库后取消只标记需拦截', () => {
+    let s = demoReducer(createSeedState(), { type: 'INGEST_OZON_POSTING', posting: posting('444-1'), storeId: 'store-polaris', at: at(0) });
+    const before = inv(s);
+    s = demoReducer(s, { type: 'DISPATCH_ORDER', orderId: 'ozon-444-1' });
+    expect(inv(s).reserved).toBe(before.reserved + 1);
+    s = demoReducer(s, { type: 'OZON_POSTING_CANCELLED', postingNumber: '444-1', at: at(2) });
+    expect(s.orders.find((o) => o.id === 'ozon-444-1')!.status).toBe('cancelled');
+    expect(inv(s)).toMatchObject({ reserved: before.reserved, available: before.available });
+
+    let t = demoReducer(createSeedState(), { type: 'INGEST_OZON_POSTING', posting: posting('555-1'), storeId: 'store-polaris', at: at(0) });
+    t = demoReducer(t, { type: 'DISPATCH_ORDER', orderId: 'ozon-555-1' });
+    t = demoReducer(t, { type: 'APPLY_WAREHOUSE_EVENT', event: { eventId: 's1', type: 'shipped', orderId: 'ozon-555-1', warehouseId: 'wh-moscow', occurredAt: at(3) } });
+    t = demoReducer(t, { type: 'OZON_POSTING_CANCELLED', postingNumber: '555-1', at: at(4) });
+    expect(t.orders.find((o) => o.id === 'ozon-555-1')).toMatchObject({ status: 'pending-ozon-sync', platformStatus: 'cancelled' });
+  });
+});

@@ -59,7 +59,7 @@ export const warehouseAdapter: WarehouseAdapter = {
 
     const failure = OUTBOUND_FAILURES[orderId];
     if (failure) throw failure;
-    if (!OUTBOUND_SUCCESS_ORDER_IDS.has(orderId)) {
+    if (!orderId.startsWith('ozon-') && !OUTBOUND_SUCCESS_ORDER_IDS.has(orderId)) {
       throw new WarehouseAdapterError('WAREHOUSE_ORDER_NOT_FOUND', '未找到对应的演示出库单');
     }
 

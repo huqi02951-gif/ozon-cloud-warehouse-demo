@@ -287,5 +287,7 @@ export type DemoAction =
   | { type: 'SYNC_INVENTORY'; inventoryIds: string[]; at?: string; actor?: string }
   | { type: 'UPDATE_WAREHOUSE_CONFIG'; warehouseId: string; priority: number; estimatedProcessingHours: number; connected: boolean }
   | { type: 'APPLY_WAREHOUSE_EVENT'; event: WarehouseEvent; actor?: string }
+  | { type: 'INGEST_OZON_POSTING'; posting: import('../integrations/ozonContract').OzonPosting; storeId: string; at?: string }
+  | { type: 'OZON_POSTING_CANCELLED'; postingNumber: string; reason?: string; at?: string }
   | { type: 'RECORD_OZON_SYNC'; orderId: string; endpoint: string; ok: boolean; trackingNumber?: string; at?: string; error?: string }
   | { type: 'RESET_DEMO' | 'RESET' };

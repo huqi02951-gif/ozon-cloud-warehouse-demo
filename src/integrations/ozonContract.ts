@@ -88,3 +88,15 @@ export interface OzonShipRequest {
 export interface OzonTrackingRequest {
   tracking_numbers: Array<{ posting_number: string; tracking_number: string }>;
 }
+
+/** /v3/posting/fbs/unfulfilled/list 返回的 posting（与真实字段同名的子集）。 */
+export interface OzonPosting {
+  posting_number: string;
+  status: OzonPostingStatus;
+  in_process_at: string;
+  shipment_date: string; // 截单 / 最晚交运时间
+  tpl_integration_type?: 'ozon' | 'non_integrated' | string; // non_integrated ≈ rFBS
+  products: Array<{ sku: number; offer_id: string; name: string; quantity: number; price: string }>;
+  analytics_data?: { region?: string; city?: string };
+  customer?: { name?: string; phone?: string; address?: { city?: string; region?: string; address_tail?: string } };
+}

@@ -1,5 +1,6 @@
 import { createSeedState } from './seed';
 import { selectWarehouse, warehouseCanFulfill } from './routing';
+import { mapPostingToOrder } from './ozonMapping';
 import type {
   AuditLog,
   DemoAction,
@@ -432,7 +433,9 @@ function mergePackage(order: Order, event: WarehouseEvent) {
   const packages = order.packages ?? [];
   const index = packages.findIndex((item) => item.packageNo === event.package!.packageNo);
   if (index < 0) return [...packages, event.package];
-  return packages.map((item, i) => i === index ? { ...item, ...event.package, items: event.package!.items.length ? event.package!.items : item.items } : item);
+  // 只合并已定义字段：后续回传缺省的运单号/重量不能覆盖之前已回传的值。
+  const defined = Object.fromEntries(Object.entries(event.package).filter(([, value]) => value !== undefined));
+  return packages.map((item, i) => i === index ? { ...item, ...defined, items: event.package!.items.length ? event.package!.items : item.items } : item);
 }
 
 /**
@@ -532,6 +535,36 @@ function recordOzonSync(state: DemoState, action: Extract<DemoAction, { type: 'R
   });
 }
 
+/** Ozon 新订单（Push TYPE_NEW_POSTING 或轮询拉取）。 */
+function ingestOzonPosting(state: DemoState, action: Extract<DemoAction, { type: 'INGEST_OZON_POSTING' }>): DemoState {
+  const at = actionTime(action);
+  const mapped = mapPostingToOrder(action.posting, action.storeId, state);
+  if (!mapped.ok) {
+    if (mapped.reason === 'duplicate') return state;
+    return pushLive(state, { source: 'ozon-push', title: `Ozon ${action.posting.posting_number} · 无法入库`, detail: mapped.reason === 'unknown-offer' ? `未知货号 ${mapped.detail}，请先建立商品/SKU 映射` : `未知店铺 ${mapped.detail}`, occurredAt: at, tone: 'danger' });
+  }
+  let next: DemoState = { ...state, orders: [mapped.order, ...state.orders] };
+  next = appendAudit(next, { entityType: 'order', entityId: mapped.order.id, action: 'OZON_POSTING_PULLED', actor: 'Ozon 同步', detail: `已拉取 Ozon 订单 ${action.posting.posting_number}`, createdAt: at, timezone: mapped.order.timezone });
+  return pushLive(next, { source: 'ozon-push', orderId: mapped.order.id, title: `${mapped.order.displayNumber} · 新订单`, detail: `${mapped.order.items.map((item) => `${item.name}×${item.quantity}`).join('，')} · ${mapped.order.recipient.region}`, occurredAt: at, tone: 'info' });
+}
+
+/** Ozon 侧取消（Push TYPE_POSTING_CANCELLED）。已出库的订单无法取消，转异常人工拦截。 */
+function cancelOzonPosting(state: DemoState, action: Extract<DemoAction, { type: 'OZON_POSTING_CANCELLED' }>): DemoState {
+  const order = state.orders.find((candidate) => candidate.postingNumber === action.postingNumber);
+  if (!order || ['cancelled', 'completed'].includes(order.status)) return state;
+  const at = actionTime(action);
+  const shippedAlready = ['shipped', 'pending-ozon-sync'].includes(order.status);
+  let next: DemoState;
+  if (shippedAlready) {
+    next = withOrder(state, { ...order, platformStatus: 'cancelled' });
+    next = appendAudit(next, { entityType: 'order', entityId: order.id, action: 'OZON_CANCEL_AFTER_SHIP', actor: 'Ozon 同步', detail: '买家已取消但云仓已出库，需联系承运商拦截', createdAt: at, timezone: order.timezone });
+  } else {
+    next = setOrderStatus(state, { type: 'SET_ORDER_STATUS', orderId: order.id, status: 'cancelled', at, actor: 'Ozon 同步' });
+    next = { ...next, tasks: next.tasks.map((task) => task.orderId === order.id && task.kind === 'outbound' && ACTIVE_TASK_STATUSES.has(task.status) ? { ...task, status: 'cancelled' as const } : task) };
+  }
+  return pushLive(next, { source: 'ozon-push', orderId: order.id, title: `${order.displayNumber} · 买家取消`, detail: shippedAlready ? '已出库，需拦截包裹' : `${action.reason ?? '买家取消'}，已通知云仓撤单并释放库存`, occurredAt: at, tone: 'warning' });
+}
+
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
     case 'DISPATCH_ORDER': return dispatchOrder(state, action);
@@ -548,6 +581,8 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     case 'SYNC_INVENTORY': return syncInventory(state, action);
     case 'APPLY_WAREHOUSE_EVENT': return applyWarehouseEvent(state, action);
     case 'RECORD_OZON_SYNC': return recordOzonSync(state, action);
+    case 'INGEST_OZON_POSTING': return ingestOzonPosting(state, action);
+    case 'OZON_POSTING_CANCELLED': return cancelOzonPosting(state, action);
     case 'UPDATE_WAREHOUSE_CONFIG': {
       if (!Number.isSafeInteger(action.priority) || action.priority < 1 || !Number.isSafeInteger(action.estimatedProcessingHours) || action.estimatedProcessingHours < 1) return state;
       const warehouse = state.warehouses.find((item) => item.id === action.warehouseId);

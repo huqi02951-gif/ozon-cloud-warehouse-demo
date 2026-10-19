@@ -23,6 +23,8 @@ import {
 } from '../integrations/warehouseAdapter';
 
 export const DEMO_STORAGE_KEY = 'ozon-cloud-demo-v1';
+/** 自动驾驶会连续产生提示，只保留最近几条，避免堆满屏幕。 */
+const MAX_TOASTS = 3;
 
 export type DemoRole = 'admin' | 'operator' | 'warehouse';
 export type ToastTone = 'success' | 'error' | 'info';
@@ -187,7 +189,7 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions = {}): DemoR
     toastSequence += 1;
     snapshot = {
       ...snapshot,
-      toasts: [...snapshot.toasts, { id: `toast-${toastSequence}`, tone, message }],
+      toasts: [...snapshot.toasts, { id: `toast-${toastSequence}`, tone, message }].slice(-MAX_TOASTS),
     };
     emit();
   };
