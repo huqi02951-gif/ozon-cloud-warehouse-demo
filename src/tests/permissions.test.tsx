@@ -46,12 +46,12 @@ describe('角色导航与全局筛选', () => {
     expect([...warehouse.options].some(option => option.value === 'all')).toBe(false);
   });
 
-  it('管理员可访问全部十二个业务路由且当前路由有明确标识', () => {
+  it('管理员可访问全部十三个业务路由且当前路由有明确标识', () => {
     window.location.hash = '#/labels';
     renderShell('admin');
 
     const navigation = screen.getByRole('navigation', { name: '主导航' });
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12);
+    expect(within(navigation).getAllByRole('link')).toHaveLength(13);
     expect(within(navigation).getByRole('link', { name: /面单中心/ }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('面单中心');
   });
@@ -60,7 +60,7 @@ describe('角色导航与全局筛选', () => {
     renderShell('operator');
 
     const navigation = screen.getByRole('navigation', { name: '主导航' });
-    expect(within(navigation).getAllByRole('link')).toHaveLength(12);
+    expect(within(navigation).getAllByRole('link')).toHaveLength(13);
     expect(within(navigation).getByRole('link', { name: '云仓管理 只读' })).toBeTruthy();
     expect(within(navigation).getByRole('link', { name: '系统设置 只读' })).toBeTruthy();
     expect(within(navigation).getByRole('link', { name: '价格管理' })).toBeTruthy();

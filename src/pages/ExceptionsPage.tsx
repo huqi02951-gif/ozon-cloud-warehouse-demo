@@ -4,7 +4,7 @@ import type { IntegrationTask } from '../domain/types';
 import { useDemo } from '../state/DemoContext';
 import type { PageProps } from './types';
 
-const KIND_LABEL: Record<IntegrationTask['kind'], string> = { outbound: '出库下发', label: '面单生成', 'inventory-sync': '库存同步', 'return-receipt': '退货签收' };
+const KIND_LABEL: Record<IntegrationTask['kind'], string> = { outbound: '出库下发', label: '面单生成', 'inventory-sync': '库存同步', 'return-receipt': '退货签收', 'ozon-ship': '回写 Ozon 发货', 'ozon-tracking': '回写 Ozon 运单' };
 
 export function ExceptionsPage({ storeId, warehouseId, role }: PageProps) {
   const { state, runCommand } = useDemo();

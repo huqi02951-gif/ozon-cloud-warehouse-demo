@@ -5,6 +5,7 @@ import { useDemo, type DemoRole } from '../state/DemoContext';
 import { routeFromHash, routePermission, routesForRole, type AppRouteGroup } from './routes';
 import { DashboardPage } from '../pages/DashboardPage';
 import { OrdersPage } from '../pages/OrdersPage';
+import { LivePage } from '../pages/LivePage';
 import { FulfillmentPage } from '../pages/FulfillmentPage';
 import { LabelsPage } from '../pages/LabelsPage';
 import { ProductsPage } from '../pages/ProductsPage';
@@ -30,6 +31,7 @@ interface NavIconProps {
 function NavIcon({ name }: NavIconProps) {
   const paths: Record<string, React.ReactNode> = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
+    live: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
     orders: <><path d="M7 3h10l2 3v15H5V6l2-3Z" /><path d="M8 10h8M8 14h8M8 18h5" /></>,
     fulfillment: <><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z" /><circle cx="7" cy="19" r="2" /><circle cx="18" cy="19" r="2" /></>,
     labels: <><path d="M4 5h12l4 4-9 9-7-7V5Z" /><circle cx="9" cy="9" r="1.5" /></>,
@@ -67,6 +69,7 @@ export function AppShell() {
     : warehouseId;
   const pageProps = { storeId, warehouseId: effectiveWarehouseId, role };
   const page = activeRoute.id === 'dashboard' ? <DashboardPage {...pageProps} />
+    : activeRoute.id === 'live' ? <LivePage {...pageProps} />
     : activeRoute.id === 'orders' ? <OrdersPage {...pageProps} />
     : activeRoute.id === 'fulfillment' ? <FulfillmentPage {...pageProps} />
     : activeRoute.id === 'labels' ? <LabelsPage {...pageProps} />
@@ -126,7 +129,7 @@ export function AppShell() {
         </nav>
         <div className="sidebar-footnote">
           <span className="sidebar-footnote__pulse" aria-hidden="true" />
-          <span><strong>本地模拟服务</strong><small>不连接真实业务接口</small></span>
+          <span><strong>{import.meta.env.VITE_EVENTS_URL ? '已接入服务端事件流' : '本地模拟服务'}</strong><small>{import.meta.env.VITE_EVENTS_URL ? '云仓回传经服务端实时推送' : '不连接真实业务接口'}</small></span>
         </div>
       </aside>
 

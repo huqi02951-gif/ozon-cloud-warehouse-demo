@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { APP_ROUTES } from '../app/routes';
 
 describe('APP_ROUTES', () => {
-  it('contains the 12 approved unique routes', () => {
-    expect(APP_ROUTES).toHaveLength(12);
-    expect(new Set(APP_ROUTES.map((route) => route.id)).size).toBe(12);
+  it('contains the 13 approved unique routes', () => {
+    expect(APP_ROUTES).toHaveLength(13);
+    expect(new Set(APP_ROUTES.map((route) => route.id)).size).toBe(13);
   });
 
-  it('matches the approved metadata and role-permission matrix for all twelve routes', () => {
+  it('matches the approved metadata and role-permission matrix for all thirteen routes', () => {
     expect(APP_ROUTES).toEqual([
       { id: 'dashboard', label: '运营工作台', group: '经营', icon: 'dashboard', roles: ['admin', 'operator', 'warehouse'], access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
+      { id: 'live', label: '实时履约', group: '经营', icon: 'live', roles: ['admin', 'operator', 'warehouse'], access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
       { id: 'orders', label: '订单中心', group: '经营', icon: 'orders', roles: ['admin', 'operator', 'warehouse'], access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
       { id: 'fulfillment', label: '出库履约', group: '履约', icon: 'fulfillment', roles: ['admin', 'operator', 'warehouse'], access: { admin: 'operate', operator: 'operate', warehouse: 'operate' } },
       { id: 'labels', label: '面单中心', group: '履约', icon: 'labels', roles: ['admin', 'operator', 'warehouse'], access: { admin: 'operate', operator: 'operate', warehouse: 'operate' } },

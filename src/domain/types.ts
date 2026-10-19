@@ -13,7 +13,7 @@ export type FulfillmentStatus =
   | 'exception';
 
 export type OrderScenario = 'normal' | 'fallback' | 'unmapped' | 'return' | 'standard';
-export type TaskKind = 'outbound' | 'label' | 'inventory-sync' | 'return-receipt';
+export type TaskKind = 'outbound' | 'label' | 'inventory-sync' | 'return-receipt' | 'ozon-ship' | 'ozon-tracking';
 export type TaskStatus = 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
 export type ReturnStatus = 'requested' | 'approved' | 'rejected' | 'in-transit' | 'received' | 'inspected';
 export type InventoryCondition = 'sellable' | 'damaged' | 'in-transit';
@@ -89,6 +89,49 @@ export interface Order {
   cutoffAt: string;
   timezone: string;
   labelWatermark: 'DEMO / 演示数据';
+  /** Ozon posting_number，真实接入时作为与 Ozon 对账的主键。 */
+  postingNumber?: string;
+  /** 云仓回传的包裹（含称重、尺寸、运单号）。 */
+  packages?: WarehousePackage[];
+  /** 已回写 Ozon 的运单号。 */
+  trackingNumber?: string;
+  /** 已回写 Ozon 的最后时间。 */
+  ozonSyncedAt?: string;
+}
+
+/** 云仓回传事件类型：从接单到出库的完整链路。 */
+export type WarehouseEventType = 'accepted' | 'picked' | 'weighed' | 'packed' | 'waybill' | 'shipped' | 'rejected';
+
+export interface WarehousePackage {
+  packageNo: string;
+  weightGrams?: number;
+  dimensionsCm?: { length: number; width: number; height: number };
+  waybillNo?: string;
+  carrier?: string;
+  items: Array<{ ozonSku: string; quantity: number }>;
+}
+
+/** 云仓 → 中台 的回传（webhook 负载）。eventId 用于幂等去重。 */
+export interface WarehouseEvent {
+  eventId: string;
+  type: WarehouseEventType;
+  orderId: string;
+  warehouseId: string;
+  occurredAt: string;
+  operator?: string;
+  package?: WarehousePackage;
+  reason?: string;
+}
+
+/** 实时事件流里的一条记录（云仓回传 / Ozon 推送 / 回写结果）。 */
+export interface LiveEvent {
+  id: string;
+  source: 'warehouse' | 'ozon-push' | 'ozon-sync';
+  orderId?: string;
+  title: string;
+  detail: string;
+  occurredAt: string;
+  tone: 'info' | 'success' | 'warning' | 'danger';
 }
 
 export interface SkuMapping {
@@ -180,6 +223,10 @@ export interface DemoState {
   tasks: IntegrationTask[];
   auditLogs: AuditLog[];
   settings: DemoSettings;
+  /** 已处理的云仓/Ozon 事件 ID，用于回传幂等。 */
+  processedEventIds?: string[];
+  /** 实时事件流（最近在前，最多保留 200 条）。 */
+  liveEvents?: LiveEvent[];
 }
 
 export type RouteReason =
@@ -239,4 +286,6 @@ export type DemoAction =
   | { type: 'SET_PRODUCT_PRICES'; updates: Array<{ productId: string; priceRub: number; promotionPriceRub?: number }>; at?: string; actor?: string }
   | { type: 'SYNC_INVENTORY'; inventoryIds: string[]; at?: string; actor?: string }
   | { type: 'UPDATE_WAREHOUSE_CONFIG'; warehouseId: string; priority: number; estimatedProcessingHours: number; connected: boolean }
+  | { type: 'APPLY_WAREHOUSE_EVENT'; event: WarehouseEvent; actor?: string }
+  | { type: 'RECORD_OZON_SYNC'; orderId: string; endpoint: string; ok: boolean; trackingNumber?: string; at?: string; error?: string }
   | { type: 'RESET_DEMO' | 'RESET' };

@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "node scripts/verify-demo.mjs"
+    "verify": "node scripts/verify-demo.mjs",
+    "server": "node server/index.mjs"
   },
   "dependencies": {
     "react": "19.1.1",

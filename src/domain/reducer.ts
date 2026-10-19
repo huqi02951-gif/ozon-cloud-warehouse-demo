@@ -7,7 +7,9 @@ import type {
   FulfillmentStatus,
   IntegrationTask,
   Order,
+  LiveEvent,
   ReturnCase,
+  WarehouseEvent,
 } from './types';
 
 const DEFAULT_ACTION_TIME = '2026-09-07T09:45:00+03:00';
@@ -405,6 +407,131 @@ function syncInventory(state: DemoState, action: Extract<DemoAction, { type: 'SY
   return { ...state, inventory: state.inventory.map((record) => ids.has(record.id) ? { ...record, updatedAt: at } : record) };
 }
 
+const MAX_LIVE_EVENTS = 200;
+const MAX_PROCESSED_EVENTS = 2000;
+
+function pushLive(state: DemoState, event: Omit<LiveEvent, 'id'> & { id?: string }): DemoState {
+  const existing = state.liveEvents ?? [];
+  const id = event.id ?? `live-${existing.length + 1}-${event.occurredAt}`;
+  return { ...state, liveEvents: [{ ...event, id }, ...existing].slice(0, MAX_LIVE_EVENTS) };
+}
+
+/** 云仓事件 → 订单履约状态。 */
+const EVENT_TARGET: Record<WarehouseEvent['type'], FulfillmentStatus | undefined> = {
+  accepted: 'warehouse-accepted', picked: 'picking', weighed: undefined, packed: 'packed',
+  waybill: undefined, shipped: 'shipped', rejected: 'exception',
+};
+const EVENT_LABEL: Record<WarehouseEvent['type'], string> = {
+  accepted: '云仓已接单', picked: '拣货完成', weighed: '称重完成', packed: '打包完成',
+  waybill: '运单已生成', shipped: '已出库', rejected: '云仓拒单',
+};
+const STATUS_ORDER: FulfillmentStatus[] = ['warehouse-accepted', 'picking', 'packed', 'shipped', 'pending-ozon-sync', 'completed'];
+
+function mergePackage(order: Order, event: WarehouseEvent) {
+  if (!event.package) return order.packages;
+  const packages = order.packages ?? [];
+  const index = packages.findIndex((item) => item.packageNo === event.package!.packageNo);
+  if (index < 0) return [...packages, event.package];
+  return packages.map((item, i) => i === index ? { ...item, ...event.package, items: event.package!.items.length ? event.package!.items : item.items } : item);
+}
+
+/**
+ * 应用一条云仓回传事件。
+ * - eventId 幂等：重复推送不会重复扣库存或写日志。
+ * - 乱序容忍：状态只向前推进（例如先收到 shipped 再收到 picked，后者只记录不回退）。
+ * - shipped 时结算预占库存，并把订单置为 pending-ozon-sync，等待回写 Ozon。
+ */
+function applyWarehouseEvent(state: DemoState, action: Extract<DemoAction, { type: 'APPLY_WAREHOUSE_EVENT' }>): DemoState {
+  const { event } = action;
+  const processed = state.processedEventIds ?? [];
+  if (processed.includes(event.eventId)) return state;
+  const order = state.orders.find((candidate) => candidate.id === event.orderId);
+  if (!order || ['cancelled', 'completed'].includes(order.status)) return state;
+  if (order.assignedWarehouseId && order.assignedWarehouseId !== event.warehouseId) return state;
+  const actor = action.actor ?? `云仓回传 · ${event.warehouseId}`;
+
+  let next: DemoState = { ...state, processedEventIds: [...processed, event.eventId].slice(-MAX_PROCESSED_EVENTS) };
+  let current = order;
+  const target = EVENT_TARGET[event.type];
+
+  if (event.type === 'rejected') {
+    current = { ...current, status: 'exception', exceptionReason: 'other', warehouseStatus: 'rejected' };
+    next = withOrder(next, current);
+    next = { ...next, tasks: next.tasks.map((task) => task.idempotencyKey === `outbound:${order.id}` ? { ...task, status: 'failed', retryable: false, failureCode: 'warehouse-refused', errorReason: event.reason ?? '云仓拒单', recommendation: '确认仓库能力并手工改仓', summary: '云仓拒绝接单' } : task) };
+  } else {
+    // 只前进不后退，跳过中间状态时按顺序补齐（结算库存只发生一次）。
+    const fromIndex = STATUS_ORDER.indexOf(current.status);
+    const toIndex = target ? STATUS_ORDER.indexOf(target) : -1;
+    if (toIndex > fromIndex && fromIndex >= 0) {
+      for (const status of STATUS_ORDER.slice(fromIndex + 1, toIndex + 1)) {
+        next = setOrderStatus(next, { type: 'SET_ORDER_STATUS', orderId: order.id, status, warehouseStatus: event.type, at: event.occurredAt, actor });
+      }
+      current = next.orders.find((candidate) => candidate.id === order.id)!;
+    }
+    const packages = mergePackage(current, event);
+    current = { ...current, packages, warehouseStatus: event.type };
+    if (event.type === 'shipped' && current.status === 'shipped') {
+      current = { ...current, status: 'pending-ozon-sync' };
+    }
+    next = withOrder(next, current);
+  }
+
+  const pkg = event.package;
+  const detail = [
+    pkg?.packageNo && `包裹 ${pkg.packageNo}`,
+    pkg?.weightGrams !== undefined && `${(pkg.weightGrams / 1000).toFixed(2)} kg`,
+    pkg?.waybillNo && `运单 ${pkg.waybillNo}${pkg.carrier ? `（${pkg.carrier}）` : ''}`,
+    event.reason,
+  ].filter(Boolean).join(' · ');
+
+  next = appendAudit(next, {
+    entityType: 'order', entityId: order.id, action: `WAREHOUSE_${event.type.toUpperCase()}`, actor,
+    detail: `${EVENT_LABEL[event.type]}${detail ? `：${detail}` : ''}`, createdAt: event.occurredAt, timezone: order.timezone,
+  });
+  return pushLive(next, {
+    id: `live-${event.eventId}`, source: 'warehouse', orderId: order.id, title: `${order.displayNumber} · ${EVENT_LABEL[event.type]}`,
+    detail: detail || `仓库 ${event.warehouseId}`, occurredAt: event.occurredAt,
+    tone: event.type === 'rejected' ? 'danger' : event.type === 'shipped' ? 'success' : 'info',
+  });
+}
+
+/** 记录一次回写 Ozon（ship / tracking）的结果；成功后订单完成闭环。 */
+function recordOzonSync(state: DemoState, action: Extract<DemoAction, { type: 'RECORD_OZON_SYNC' }>): DemoState {
+  const order = state.orders.find((candidate) => candidate.id === action.orderId);
+  if (!order) return state;
+  const at = actionTime(action);
+  const key = `ozon-sync:${order.id}`;
+  const existing = state.tasks.find((task) => task.idempotencyKey === key);
+  const task: IntegrationTask = {
+    ...(existing ?? { id: nextTaskId(state, `task-ozon-sync-${order.id}`), retryCount: 0, idempotencyKey: key, timezone: order.timezone }),
+    kind: 'ozon-ship', orderId: order.id, warehouseId: order.assignedWarehouseId,
+    status: action.ok ? 'succeeded' : 'failed', lastAttemptAt: at,
+    retryCount: existing ? existing.retryCount + 1 : 0,
+    summary: action.ok ? '已回写 Ozon 发货与运单' : '回写 Ozon 失败',
+    requestSummary: `${action.endpoint} · ${order.postingNumber ?? order.displayNumber}`,
+    errorReason: action.ok ? undefined : action.error ?? 'Ozon 接口返回错误',
+    recommendation: action.ok ? undefined : '检查 posting 状态与运单号后重新回写',
+    retryable: !action.ok, failureCode: action.ok ? undefined : 'ozon-sync-gap',
+  };
+  let next: DemoState = { ...state, tasks: existing ? state.tasks.map((item) => item === existing ? task : item) : [...state.tasks, task] };
+  if (action.ok) {
+    next = withOrder(next, { ...order, trackingNumber: action.trackingNumber ?? order.trackingNumber, ozonSyncedAt: at, platformStatus: 'delivering' });
+    if (order.status === 'pending-ozon-sync') {
+      next = setOrderStatus(next, { type: 'SET_ORDER_STATUS', orderId: order.id, status: 'completed', at, actor: 'Ozon 回写' });
+      next = withOrder(next, { ...next.orders.find((o) => o.id === order.id)!, platformStatus: 'delivering' });
+    }
+  }
+  next = appendAudit(next, {
+    entityType: 'order', entityId: order.id, action: action.ok ? 'OZON_SYNC_OK' : 'OZON_SYNC_FAILED', actor: 'Ozon 回写',
+    detail: action.ok ? `已调用 ${action.endpoint}${action.trackingNumber ? `，运单 ${action.trackingNumber}` : ''}` : `${action.endpoint} 失败：${action.error ?? '未知错误'}`,
+    createdAt: at, timezone: order.timezone,
+  });
+  return pushLive(next, {
+    source: 'ozon-sync', orderId: order.id, title: `${order.displayNumber} · ${action.ok ? '已同步 Ozon' : '同步 Ozon 失败'}`,
+    detail: action.endpoint, occurredAt: at, tone: action.ok ? 'success' : 'danger',
+  });
+}
+
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
     case 'DISPATCH_ORDER': return dispatchOrder(state, action);
@@ -419,6 +546,8 @@ export function demoReducer(state: DemoState, action: DemoAction): DemoState {
     case 'SET_PRODUCT_ACTIVE': return setProductActive(state, action);
     case 'SET_PRODUCT_PRICES': return setProductPrices(state, action);
     case 'SYNC_INVENTORY': return syncInventory(state, action);
+    case 'APPLY_WAREHOUSE_EVENT': return applyWarehouseEvent(state, action);
+    case 'RECORD_OZON_SYNC': return recordOzonSync(state, action);
     case 'UPDATE_WAREHOUSE_CONFIG': {
       if (!Number.isSafeInteger(action.priority) || action.priority < 1 || !Number.isSafeInteger(action.estimatedProcessingHours) || action.estimatedProcessingHours < 1) return state;
       const warehouse = state.warehouses.find((item) => item.id === action.warehouseId);

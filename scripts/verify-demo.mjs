@@ -1,7 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const routeHeadings = ['运营工作台', '订单中心', '出库履约', '面单中心', '商品中心', '库存中心', '价格管理', 'rFBS 退货', '云仓管理', 'SKU 映射', '异常与日志', '系统设置'];
+const routeHeadings = ['运营工作台', '实时履约', '订单中心', '出库履约', '面单中心', '商品中心', '库存中心', '价格管理', 'rFBS 退货', '云仓管理', 'SKU 映射', '异常与日志', '系统设置'];
 const files = await readdir('dist/assets');
 const sources = await Promise.all(['dist/index.html', ...files.map((file) => join('dist/assets', file))].map((file) => readFile(file, 'utf8')));
 const bundle = sources.join('\n');
