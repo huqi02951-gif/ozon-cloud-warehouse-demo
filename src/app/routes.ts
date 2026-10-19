@@ -2,6 +2,7 @@ import type { DemoRole } from '../state/DemoContext';
 
 export type AppRouteId =
   | 'dashboard'
+  | 'live'
   | 'orders'
   | 'fulfillment'
   | 'labels'
@@ -31,6 +32,7 @@ const OFFICE_ROLES: DemoRole[] = ['admin', 'operator'];
 
 export const APP_ROUTES: AppRoute[] = [
   { id: 'dashboard', label: '运营工作台', group: '经营', icon: 'dashboard', roles: ALL_ROLES, access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
+  { id: 'live', label: '实时履约', group: '经营', icon: 'live', roles: ALL_ROLES, access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
   { id: 'orders', label: '订单中心', group: '经营', icon: 'orders', roles: ALL_ROLES, access: { admin: 'operate', operator: 'operate', warehouse: 'read-only' } },
   { id: 'fulfillment', label: '出库履约', group: '履约', icon: 'fulfillment', roles: ALL_ROLES, access: { admin: 'operate', operator: 'operate', warehouse: 'operate' } },
   { id: 'labels', label: '面单中心', group: '履约', icon: 'labels', roles: ALL_ROLES, access: { admin: 'operate', operator: 'operate', warehouse: 'operate' } },

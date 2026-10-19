@@ -25,7 +25,7 @@ afterEach(cleanup);
 
 describe('release acceptance', () => {
   it('renders every approved route without an empty main region', () => {
-    expect(APP_ROUTES).toHaveLength(12);
+    expect(APP_ROUTES).toHaveLength(13);
     for (const route of APP_ROUTES) {
       const view = renderDemoAt(route.id);
       const main = view.getByRole('main');

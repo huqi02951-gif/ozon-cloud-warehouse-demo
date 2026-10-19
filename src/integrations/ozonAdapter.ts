@@ -76,7 +76,7 @@ export const ozonAdapter: OzonAdapter = {
 
     const failure = LABEL_FAILURES[orderId];
     if (failure) throw failure;
-    if (!KNOWN_ORDERS.has(orderId)) {
+    if (!orderId.startsWith('ozon-') && !KNOWN_ORDERS.has(orderId)) {
       throw new OzonAdapterError('OZON_ORDER_NOT_FOUND', '未找到对应的演示 Ozon 订单');
     }
 

@@ -23,6 +23,8 @@ import {
 } from '../integrations/warehouseAdapter';
 
 export const DEMO_STORAGE_KEY = 'ozon-cloud-demo-v1';
+/** 自动驾驶会连续产生提示，只保留最近几条，避免堆满屏幕。 */
+const MAX_TOASTS = 3;
 
 export type DemoRole = 'admin' | 'operator' | 'warehouse';
 export type ToastTone = 'success' | 'error' | 'info';
@@ -39,7 +41,7 @@ export interface DemoStorage {
   removeItem(key: string): void;
 }
 
-export type DemoCommand = DemoAction | { type: 'GET_LABEL'; orderId: string };
+export type DemoCommand = DemoAction | { type: 'GET_LABEL'; orderId: string } | { type: 'SYNC_TO_OZON'; orderId: string; fail?: boolean };
 
 export interface CommandResult<T = unknown> {
   ok: boolean;
@@ -147,6 +149,7 @@ function successMessage(command: DemoCommand): string {
     case 'RETRY_TASK': return '重试成功';
     case 'UPDATE_SETTINGS': return '设置已保存到本机';
     case 'UPDATE_STORE_CONNECTION': return '店铺授权状态已更新';
+    case 'SYNC_TO_OZON': return '已回写 Ozon 发货与运单';
     default: return '演示操作已完成';
   }
 }
@@ -186,7 +189,7 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions = {}): DemoR
     toastSequence += 1;
     snapshot = {
       ...snapshot,
-      toasts: [...snapshot.toasts, { id: `toast-${toastSequence}`, tone, message }],
+      toasts: [...snapshot.toasts, { id: `toast-${toastSequence}`, tone, message }].slice(-MAX_TOASTS),
     };
     emit();
   };
@@ -295,6 +298,19 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions = {}): DemoR
         return commandSuccess(successMessage(command), data);
       }
       if (command.type === 'DISPATCH_ORDER') return await runDispatchCommand(command);
+      if (command.type === 'SYNC_TO_OZON') {
+        const order = snapshot.state.orders.find((item) => item.id === command.orderId);
+        if (!order || order.status !== 'pending-ozon-sync') return commandFailure('SYNC_NOT_READY', '订单尚未出库，不能回写 Ozon');
+        const trackingNumber = order.packages?.find((item) => item.waybillNo)?.waybillNo;
+        const endpoint = order.fulfillmentType === 'rFBS' ? '/v2/fbs/posting/tracking-number/set' : '/v4/posting/fbs/ship';
+        const at = new Date().toISOString();
+        if (command.fail) {
+          commitState(demoReducer(snapshot.state, { type: 'RECORD_OZON_SYNC', orderId: order.id, endpoint, ok: false, at, error: 'POSTING_ALREADY_SHIPPED 或参数校验失败（模拟）' }));
+          return commandFailure('OZON_SYNC_FAILED', '回写 Ozon 失败，已进入异常队列');
+        }
+        commitState(demoReducer(snapshot.state, { type: 'RECORD_OZON_SYNC', orderId: order.id, endpoint, ok: true, trackingNumber, at }));
+        return commandSuccess(successMessage(command));
+      }
       if (command.type === 'RETRY_TASK') return await runRetryCommand(command);
       if (command.type === 'SET_PRODUCT_PRICES') {
         if (!command.updates.length) return commandFailure('PRICE_TARGET_EMPTY', '没有可调价的商品');
