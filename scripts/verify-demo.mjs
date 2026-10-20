@@ -13,3 +13,6 @@ if (forbiddenEndpoint.test(bundle)) throw new Error(`构建产物包含业务在
 const html = sources[0];
 if (!/src="\.\/assets\//.test(html) || !/href="\.\/assets\//.test(html)) throw new Error('构建资源不是相对路径');
 console.log(`Verified ${routeHeadings.length} routes, relative assets, demo watermark, and no live endpoints.`);
+
+// Keep the existing release command while checking the new public content.
+await import('./verify-content.mjs');
