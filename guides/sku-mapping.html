@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SKU 对不上，先修映射，再恢复订单。 · 云仓操作手记</title>
+    <meta
+      name="description"
+      content="用一笔缺失映射的样例，理解为什么“重试”之前必须先消除原因。"
+    />
+    <meta name="google-adsense-account" content="ca-pub-6732464360142866" />
+    <link
+      rel="canonical"
+      href="https://ozon-cloud-warehouse.pages.dev/guides/sku-mapping"
+    />
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到正文</a>
+    <header class="masthead">
+      <a class="brand" href="./">云仓操作手记<span>Ozon 云仓演示项目</span></a>
+      <nav aria-label="网站导航">
+        <a href="./">使用指南</a><a href="../#/dashboard">打开演示 ↗</a
+        ><a href="../about.html">关于</a>
+      </nav>
+    </header>
+    <main id="main" class="article-layout">
+      <aside class="article-toc" aria-label="本文目录">
+        <strong>本文目录</strong><a href="#step-1">一个商品，为什么有不同编号</a
+        ><a href="#step-2">修复这个演示异常</a
+        ><a href="#step-3">为什么有时保存了，却没有恢复履约</a
+        ><a href="#step-4">批量操作先预览，再应用</a><a href="./">← 全部指南</a>
+      </aside>
+      <article class="article">
+        <span class="eyebrow">GUIDE 02 / 异常排查</span>
+        <h1>SKU 对不上，先修映射，再恢复订单。</h1>
+        <p class="lead">
+          用一笔缺失映射的样例，理解为什么“重试”之前必须先消除原因。
+        </p>
+        <p class="meta">项目维护者整理 · 更新于 2026-10-20 · 配套本项目演示</p>
+        <div class="callout">
+          操作仅改变当前浏览器中的虚构演示数据，不连接真实 Ozon
+          或云仓业务。请勿填写真实客户信息、订单或平台密钥。
+        </div>
+        <section id="step-1">
+          <h2>一个商品，为什么有不同编号</h2>
+          <p>
+            店铺使用的 Ozon SKU
+            与仓库使用的货号未必相同。映射表表达的是：某家店的某个
+            SKU，应交给哪座仓库、使用哪个仓库货号。只对上商品名称，还不足以保证能下发。
+          </p>
+          <p>
+            演示中预置了一条缺失映射，以及对应的“SKU
+            未映射演示单”。它们共用同一份浏览器状态，因此修复不是只改一行表格，还可以恢复受阻订单。
+          </p>
+        </section>
+        <section id="step-2">
+          <h2>修复这个演示异常</h2>
+          <ol>
+            <li>
+              以管理员或运营人员进入 SKU
+              映射。将店铺、云仓和状态筛选调整到能看到缺失记录的范围。
+            </li>
+            <li>
+              点击“建立映射”，核对当前的 Ozon SKU。选择演示仓库货号，例如
+              CW-9008。
+            </li>
+            <li>
+              点击“保存并重试”。这里会先保存映射，再尝试重新下发关联订单，两步分别处理结果。
+            </li>
+            <li>
+              出现“订单已恢复履约”后，去订单中心查看“SKU
+              未映射演示单”，再到出库履约检查是否生成任务。
+            </li>
+          </ol>
+        </section>
+        <section id="step-3">
+          <h2>为什么有时保存了，却没有恢复履约</h2>
+          <p>
+            映射修好，只代表这一项前置检查通过。库存不足、仓库未连接或订单已取消，仍可能使后续下发失败。若提示“映射已保存，订单重试失败”，应保留修复结果，继续查具体失败原因，而不是把货号再次改回。
+          </p>
+          <p>
+            如果缺失记录没有出现在当前筛选范围，先恢复全部店铺、全部云仓并清空搜索。批量导入只作用于当前可见的缺失记录，不会替你修复被筛选隐藏的记录。
+          </p>
+        </section>
+        <section id="step-4">
+          <h2>批量操作先预览，再应用</h2>
+          <p>
+            “批量导入”在这里是受控样例：预览当前范围第一条缺失映射，点击“应用 1
+            条映射”才写入状态。它不是任意 Excel
+            文件上传，也不代表已经执行真实平台批量导入。
+          </p>
+          <ul>
+            <li>核对店铺、SKU、目标仓库与仓库货号，而不只看“保存成功”。</li>
+            <li>确认订单生成了出库任务，防止映射修复与履约恢复脱节。</li>
+            <li>
+              正式系统还需防止跨店铺误映射、重复货号和未经审核的批量修改。
+            </li>
+          </ul>
+        </section>
+        <nav class="article-end" aria-label="阅读完成">
+          <a href="../#/sku-mapping">打开配套演示 ↗</a
+          ><a href="./">返回全部指南</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <nav aria-label="页尾导航">
+        <a href="./">全部指南</a><a href="../about.html">关于与反馈</a
+        ><a href="../privacy.html">隐私与广告说明</a
+        ><a
+          href="https://github.com/huqi02951-gif/ozon-cloud-warehouse-demo"
+          rel="noopener noreferrer"
+          >公开源码 ↗</a
+        >
+      </nav>
+      <p>
+        由项目维护者整理 · 2026<br />独立学习与产品演示项目，非 Ozon
+        官方网站。演示订单、商品、库存与物流均为虚构，不连接真实交易服务。
+      </p>
+    </footer>
+  </body>
+</html>

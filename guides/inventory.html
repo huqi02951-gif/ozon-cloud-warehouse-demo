@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>仓库有货，平台为什么不一定能卖？ · 云仓操作手记</title>
+    <meta
+      name="description"
+      content="从可用库存与安全库存出发，核对一次同步究竟改变了什么。"
+    />
+    <meta name="google-adsense-account" content="ca-pub-6732464360142866" />
+    <link
+      rel="canonical"
+      href="https://ozon-cloud-warehouse.pages.dev/guides/inventory"
+    />
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到正文</a>
+    <header class="masthead">
+      <a class="brand" href="./">云仓操作手记<span>Ozon 云仓演示项目</span></a>
+      <nav aria-label="网站导航">
+        <a href="./">使用指南</a><a href="../#/dashboard">打开演示 ↗</a
+        ><a href="../about.html">关于</a>
+      </nav>
+    </header>
+    <main id="main" class="article-layout">
+      <aside class="article-toc" aria-label="本文目录">
+        <strong>本文目录</strong><a href="#step-1">先看库存的口径</a
+        ><a href="#step-2">完成一次可核对的修改</a
+        ><a href="#step-3">用一个数字例子理解边界</a
+        ><a href="#step-4">同步成功，还要看目标是否正确</a
+        ><a href="./">← 全部指南</a>
+      </aside>
+      <article class="article">
+        <span class="eyebrow">GUIDE 03 / 库存与同步</span>
+        <h1>仓库有货，平台为什么不一定能卖？</h1>
+        <p class="lead">
+          从可用库存与安全库存出发，核对一次同步究竟改变了什么。
+        </p>
+        <p class="meta">项目维护者整理 · 更新于 2026-10-20 · 配套本项目演示</p>
+        <div class="callout">
+          操作仅改变当前浏览器中的虚构演示数据，不连接真实 Ozon
+          或云仓业务。请勿填写真实客户信息、订单或平台密钥。
+        </div>
+        <section id="step-1">
+          <h2>先看库存的口径</h2>
+          <p>
+            “在库”是仓库里存在的数量，“锁定”对应被订单占用的部分，“残次”和“在途”又属于不同的库存状态。直接把在库数填成平台可售数，容易忽略已经占用或暂时不能出售的部分。
+          </p>
+          <p>
+            本演示已提供“可用”字段，平台可售采用以下计算。不要再从可用数里重复扣减同一份锁定库存。
+          </p>
+          <p class="formula">Ozon 可售 = max(0，可用库存 − 安全库存)</p>
+        </section>
+        <section id="step-2">
+          <h2>完成一次可核对的修改</h2>
+          <ol>
+            <li>
+              进入库存中心，选好店铺和云仓，记录目标行的可用、安全库存和 Ozon
+              可售数。
+            </li>
+            <li>
+              点击“编辑安全库存”，输入非负整数，例如 8。负数或小数会被拒绝。
+            </li>
+            <li>点击“保存并同步”，核对结果提示，再用上面的公式复算该行。</li>
+            <li>
+              如需同步多行，先确认筛选范围，再点击“同步可见库存”。这里处理的是当前可见记录，不是所有仓库的全部库存。
+            </li>
+          </ol>
+        </section>
+        <section id="step-3">
+          <h2>用一个数字例子理解边界</h2>
+          <p>
+            假设可用库存为 18、安全库存为 8，则平台可售为 10。如果安全库存改为
+            20，平台可售降到
+            0，不会出现负的可售库存。这是本项目的演示规则，不是对平台所有履约模式的通用计算承诺。
+          </p>
+          <p>
+            仓库人员在本演示中只有库存查看权限，看不到编辑与同步入口。切换角色可以观察界面差异；这些前端角色仅帮助学习，不构成真实的服务端身份认证。
+          </p>
+        </section>
+        <section id="step-4">
+          <h2>同步成功，还要看目标是否正确</h2>
+          <ul>
+            <li>核对商品与仓库，避免把同名商品当成同一个 SKU。</li>
+            <li>核对筛选后的行数，确认没有误操作其他店铺。</li>
+            <li>
+              区分“本地演示同步成功”与“平台真实确认”；本站没有传输真实库存。
+            </li>
+            <li>
+              正式接入时需处理平台返回、延迟、并发订单与重试，不能只依赖浏览器上的新数字。
+            </li>
+          </ul>
+          <p>
+            建议把修改前后的口径和结果一起保存到自己的工作记录中；不要在本演示里输入真实库存或平台密钥。
+          </p>
+        </section>
+        <nav class="article-end" aria-label="阅读完成">
+          <a href="../#/inventory">打开配套演示 ↗</a
+          ><a href="./">返回全部指南</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <nav aria-label="页尾导航">
+        <a href="./">全部指南</a><a href="../about.html">关于与反馈</a
+        ><a href="../privacy.html">隐私与广告说明</a
+        ><a
+          href="https://github.com/huqi02951-gif/ozon-cloud-warehouse-demo"
+          rel="noopener noreferrer"
+          >公开源码 ↗</a
+        >
+      </nav>
+      <p>
+        由项目维护者整理 · 2026<br />独立学习与产品演示项目，非 Ozon
+        官方网站。演示订单、商品、库存与物流均为虚构，不连接真实交易服务。
+      </p>
+    </footer>
+  </body>
+</html>

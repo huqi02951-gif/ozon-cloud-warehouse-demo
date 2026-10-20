@@ -240,7 +240,7 @@ a { color: inherit; text-decoration: none; }
 }
 .heading-meta span { color: var(--muted); font-size: 9px; }
 .heading-meta strong { font-size: 11px; }
-.page-stack { display: grid; max-width: 1420px; margin: 0 auto; gap: 14px; }
+.page-stack { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); max-width: 1420px; margin: 0 auto; gap: 14px; }
 .metric-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .panel { border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow-sm); }
 .panel__head, .action-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
@@ -557,7 +557,7 @@ a { color: inherit; text-decoration: none; }
   .brand-copy small, .sidebar-footnote { display: none; }
   .topbar { padding-inline: 18px; }
   .content { padding-inline: 20px; }
-  .metric-grid { grid-template-columns: repeat(3, 1fr); }
+  .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .warehouse-grid { grid-template-columns: 1fr; }
 }
 
@@ -573,8 +573,47 @@ a { color: inherit; text-decoration: none; }
   .context-select select { max-width: 130px; }
   .page-heading { align-items: flex-start; }
   .heading-meta { display: none; }
+  .content { padding: 20px 16px 32px; }
+  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
+  .topbar__context { flex: 1 1 100%; gap: 8px; }
+  .context-select { flex: 1; min-width: 0; }
+  .context-select select { width: 100%; max-width: none; }
+  .topbar__actions { flex: 1 1 100%; justify-content: flex-end; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .metric-card { padding: 14px 12px; }
+  .compact-list a { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 12px; }
+  .compact-list a > strong { grid-column: 1; font-size: 12px; }
+  .compact-list a > span:not(.status-tag) { grid-column: 1; grid-row: 2; }
+  .compact-list a > .status-tag { grid-column: 2; grid-row: 1 / 3; }
+  .panel__head, .action-bar, .catalog-toolbar, .data-table-toolbar { flex-wrap: wrap; }
+  .panel__head { padding: 14px 12px; gap: 10px; }
+  .tabs { max-width: 100%; overflow-x: auto; }
+  .tabs button { flex: 0 0 auto; }
+  .catalog-toolbar { gap: 10px; }
+  .catalog-toolbar label { min-width: 0; flex: 1 1 150px; }
+  .catalog-toolbar input, .catalog-toolbar select { min-width: 0; width: 100%; }
+  .exception-grid { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .exception-card header, .exception-card__actions, .danger-zone, .store-connections article { flex-wrap: wrap; }
+  .exception-card dd, .timeline__content, .audit-list article { min-width: 0; overflow-wrap: anywhere; }
+  .warehouse-card header { flex-wrap: wrap; }
+  .warehouse-card header > .status-tag { margin-left: 0; }
+  .drawer { width: min(560px, 100vw); height: 100dvh; }
+  .drawer__header, .drawer__body { padding-inline: 16px; }
+  .drawer__footer, .confirm-modal__actions { flex-wrap: wrap; }
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .label-preview { min-width: 0; overflow-wrap: anywhere; }
+  .fake-barcode { width: min(270px, 100%); }
+  .role-matrix { font-size: 10px; table-layout: fixed; }
+  .role-matrix th, .role-matrix td { padding: 6px; overflow-wrap: anywhere; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.guide-entry { color: var(--primary); font-size: 12px; font-weight: 650; white-space: nowrap; padding: 8px 0; }
+.guide-entry:hover { text-decoration: underline; text-underline-offset: 4px; }
+.app-footer { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-left: 236px; padding: 20px 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.8; }
+.app-footer a { color: var(--primary); }
+@media (max-width: 1024px) { .app-footer { margin-left: 206px; } }
+@media (max-width: 760px) { .app-footer { margin-left: 72px; padding-inline: 16px; } .guide-entry { margin-right: auto; } }

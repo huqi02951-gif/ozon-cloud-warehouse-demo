@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>退回来了，什么时候才能重新上架？ · 云仓操作手记</title>
+    <meta
+      name="description"
+      content="把退货审核、仓库签收与质量判断分开，追踪库存回流的最后一步。"
+    />
+    <meta name="google-adsense-account" content="ca-pub-6732464360142866" />
+    <link
+      rel="canonical"
+      href="https://ozon-cloud-warehouse.pages.dev/guides/returns"
+    />
+    <link rel="stylesheet" href="guide.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到正文</a>
+    <header class="masthead">
+      <a class="brand" href="./">云仓操作手记<span>Ozon 云仓演示项目</span></a>
+      <nav aria-label="网站导航">
+        <a href="./">使用指南</a><a href="../#/dashboard">打开演示 ↗</a
+        ><a href="../about.html">关于</a>
+      </nav>
+    </header>
+    <main id="main" class="article-layout">
+      <aside class="article-toc" aria-label="本文目录">
+        <strong>本文目录</strong
+        ><a href="#step-1">“同意退货”与“恢复库存”之间，还有两步</a
+        ><a href="#step-2">从申请走到验货</a
+        ><a href="#step-3">角色不同，能做的步骤也不同</a
+        ><a href="#step-4">检查退货有没有真正闭环</a><a href="./">← 全部指南</a>
+      </aside>
+      <article class="article">
+        <span class="eyebrow">GUIDE 04 / 逆向履约</span>
+        <h1>退回来了，什么时候才能重新上架？</h1>
+        <p class="lead">
+          把退货审核、仓库签收与质量判断分开，追踪库存回流的最后一步。
+        </p>
+        <p class="meta">项目维护者整理 · 更新于 2026-10-20 · 配套本项目演示</p>
+        <div class="callout">
+          操作仅改变当前浏览器中的虚构演示数据，不连接真实 Ozon
+          或云仓业务。请勿填写真实客户信息、订单或平台密钥。
+        </div>
+        <section id="step-1">
+          <h2>“同意退货”与“恢复库存”之间，还有两步</h2>
+          <p>
+            退货不是正向出库的简单倒放。同意申请，只决定是否接受退回；确认签收说明货物到仓；验货才决定它能否重新成为可售库存。提前补回库存，可能把仍在运输或尚未验货的商品重新卖出。
+          </p>
+          <p>
+            下面使用 rFBS 退货列表中的 return-01
+            样例理解这一条链路。演示不发起真实退款，不联系买家，也不生成真实退货物流。
+          </p>
+        </section>
+        <section id="step-2">
+          <h2>从申请走到验货</h2>
+          <ol>
+            <li>以管理员进入 rFBS 退货，打开 return-01 的详情。</li>
+            <li>
+              先选择“退回云仓”。这个选择决定后续验货恢复库存的目标，不应等验货后才补填。
+            </li>
+            <li>点击“同意退货”，阅读确认提示，再点击“确认同意”。</li>
+            <li>货物到仓的演示阶段点击“确认签收”。签收本身不等于质量合格。</li>
+            <li>
+              点击“验货：恢复可售”，核对“验货完成，已恢复可售库存”提示，再去库存中心查看目标仓库，最后检查操作日志。
+            </li>
+          </ol>
+        </section>
+        <section id="step-3">
+          <h2>角色不同，能做的步骤也不同</h2>
+          <p>
+            运营与管理员处理申请判断，仓库人员负责相应阶段的签收和验货。本演示不会让仓库人员在申请尚未同意时直接签收，也不会显示申请审批按钮。切换角色时，应同时留意当前可见的云仓范围。
+          </p>
+          <p>
+            如果看不到预期操作，先查退货所处阶段、当前角色和关联仓库，而不是反复刷新或重复提交同一动作。
+          </p>
+        </section>
+        <section id="step-4">
+          <h2>检查退货有没有真正闭环</h2>
+          <ul>
+            <li>申请状态、签收状态和验货结果分别有记录。</li>
+            <li>库存增加发生在选择的退回仓库，不是原订单任意一座仓库。</li>
+            <li>可售恢复以验货结果为依据，不能由“收到退货”直接推断。</li>
+            <li>日志说明操作人和操作类型，便于回看为什么发生库存变化。</li>
+          </ul>
+          <p>
+            真实业务中的退货资格、退款和时限必须以平台当前规则及实际订单为准。这里记录的是项目内可复现的工作流，不提供平台政策承诺。
+          </p>
+        </section>
+        <nav class="article-end" aria-label="阅读完成">
+          <a href="../#/returns">打开配套演示 ↗</a
+          ><a href="./">返回全部指南</a>
+        </nav>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <nav aria-label="页尾导航">
+        <a href="./">全部指南</a><a href="../about.html">关于与反馈</a
+        ><a href="../privacy.html">隐私与广告说明</a
+        ><a
+          href="https://github.com/huqi02951-gif/ozon-cloud-warehouse-demo"
+          rel="noopener noreferrer"
+          >公开源码 ↗</a
+        >
+      </nav>
+      <p>
+        由项目维护者整理 · 2026<br />独立学习与产品演示项目，非 Ozon
+        官方网站。演示订单、商品、库存与物流均为虚构，不连接真实交易服务。
+      </p>
+    </footer>
+  </body>
+</html>

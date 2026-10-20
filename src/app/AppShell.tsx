@@ -115,6 +115,7 @@ export function AppShell() {
                   <a
                     className={route.id === activeRoute.id ? 'nav-link active' : 'nav-link'}
                     href={`#/${route.id}`}
+                    aria-label={`${route.label}${route.access[role] === 'read-only' ? ' 只读' : ''}`}
                     key={route.id}
                     aria-current={route.id === activeRoute.id ? 'page' : undefined}
                   >
@@ -153,6 +154,7 @@ export function AppShell() {
             </label>
           </div>
           <div className="topbar__actions">
+            <a className="guide-entry" href="guides/">使用指南 ↗</a>
             <span className="demo-badge">演示环境</span>
             <label className="role-switcher">
               <span className="avatar" aria-hidden="true">{ROLE_LABELS[role].slice(0, 1)}</span>
